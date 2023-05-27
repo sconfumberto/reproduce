@@ -36,14 +36,49 @@ print(na_count_date)
 na_count_interval <- sum(is.na(data$interval))
 print(na_count_interval)
 
-#filters out rows where there are NAs
-xx
+#only the steps column has NAs
 
-#then calculates the median of steps on both weekdays and weekends
-xx
+#adds a column with the days of the week
+# Add a new column indicating weekday or weekend
+data$day_name <- ifelse(weekdays(data$date) %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
 
-#then puts the meadian for weekdays in NA rows corresponding to weekdays
-xx
+#calculates the median and mean of steps on both weekdays and weekends
+median_weekdays <- data %>%
+  filter (day_name == "Weekday") %>%
+  summarize(med_days = median(steps, na.rm = TRUE))
 
-#and puts the meadian for weekends in NA rows corresponding to weekends
-xx
+median_weekends <- data %>%
+  filter (day_name == "Weekend") %>%
+  summarize(med_ends = median(steps, na.rm = TRUE))
+
+mean_weekdays <- data %>%
+  filter (day_name == "Weekday") %>%
+  summarize(mean_days = mean(steps, na.rm = TRUE))
+
+mean_weekends <- data %>%
+  filter (day_name == "Weekend") %>%
+  summarize(mean_ends = mean(steps, na.rm = TRUE))
+
+#since the median of both weekdays and weekends is the same, i.e. 0, I substitute 0 for NAs in the whole steps column
+data$steps[is.na(data$steps)] <- 0
+
+#ex.1
+total_steps <- data %>%
+  group_by(date) %>%
+  summarize (total_per_day = sum(steps))
+
+mean_per_day <- mean(total_steps$total_per_day)
+
+median_per_day <- median(total_steps$total_per_day)
+
+ggplot(total_steps, aes(x = date)) +
+  geom_histogram ()
+
+hist(total_steps$total_per_day, 
+     main = "Histogram of Total Steps per Day",
+     xlab = "Total Steps",
+     ylab = "Frequency",
+     col = "blue")
+
+#ex.2
+
