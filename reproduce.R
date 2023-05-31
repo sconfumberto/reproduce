@@ -1,8 +1,6 @@
 library(ggplot2)
 library(knitr)
 library(readr)
-library(tibble)
-library(tidyr)
 library(dplyr)
 
 #extracts the csv file from the zip 
@@ -68,9 +66,15 @@ total_steps <- data %>%
   group_by(date) %>%
   summarize (total_per_day = sum(steps))
 
+print (total_steps)
+
 mean_per_day <- mean(total_steps$total_per_day)
 
+print (mean_per_day)
+
 median_per_day <- median(total_steps$total_per_day)
+
+print (median_per_day)
 
 ggplot(total_steps, aes(x = date)) +
   geom_histogram ()

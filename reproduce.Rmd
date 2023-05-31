@@ -9,22 +9,196 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Exploratory analysis of activity monitoring data
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+In this R Markdown document is described the step-by-step process to accomplish the 4 tasks required by the project.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+### Loading packages and the data
+In the code chunk below, the csv file is extraced and read into R
 
-```{r cars}
-summary(cars)
+```{r}
+
+#loads the required packages
+library(ggplot2)
+library(knitr)
+library(readr)
+library(dplyr)
+
+#extracts the csv file from the zip 
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+
+working_dir <- getwd()
+
+dest_zip_file <- file.path(working_dir, "data.zip")
+
+dest_csv_file <- file.path(working_dir, "activity.csv")
+
+download.file(url, dest_zip_file, method = "auto")
+
+unzip(dest_zip_file, files = "activity.csv", exdir = working_dir)
+
+if(file.exists(dest_csv_file)) {
+  cat("CSV file extracted successfully")
+} else {
+  cat("Failed to extract the CSV file")
+}
+
+#reads the csv file
+data <- read_csv("activity.csv")
 ```
 
-## Including Plots
+### Preliminary cleaning of the dataset
+The first assignment (below) suggested that I could ignore the missing values (NAs), however I have interpreted this as a way of saying that I could ignore them, but also that I could not if I wanted to. As a consequence, I decided to deal with missing values right away. Therefore, task 3 below, will not deal anymore with the issue of imputing missing values.
 
-You can also embed plots, for example:
+Furthermore, in this task, I have also dealt right away with the days of the week, because I thought it was important to know from the beginning which days were weekday and which ones were weekends. Therefore, task 4 below, will not deal anymore with this issue of finding the day of the week.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+#counts NAs in each column
+na_count_steps <- sum(is.na(data$steps))
+print(na_count_steps)
+
+na_count_date <- sum(is.na(data$date))
+print(na_count_date)
+
+na_count_interval <- sum(is.na(data$interval))
+print(na_count_interval)
+
+#only the steps column has NAs
+
+#adds a column with the days of the week
+# Add a new column indicating weekday or weekend
+data$day_name <- ifelse(weekdays(data$date) %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
+
+#calculates the median and mean of steps on both weekdays and weekends
+median_weekdays <- data %>%
+  filter (day_name == "Weekday") %>%
+  summarize(med_days = median(steps, na.rm = TRUE))
+
+median_weekends <- data %>%
+  filter (day_name == "Weekend") %>%
+  summarize(med_ends = median(steps, na.rm = TRUE))
+
+mean_weekdays <- data %>%
+  filter (day_name == "Weekday") %>%
+  summarize(mean_days = mean(steps, na.rm = TRUE))
+
+mean_weekends <- data %>%
+  filter (day_name == "Weekend") %>%
+  summarize(mean_ends = mean(steps, na.rm = TRUE))
+
+#since the median of both weekdays and weekends is the same, i.e. 0, I substitute 0 for NAs in the whole steps column
+data$steps[is.na(data$steps)] <- 0
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+### What is mean total number of steps taken per day?
+See the code chunk below
+
+```{r}
+total_steps <- data %>%
+  group_by(date) %>%
+  summarize (total_per_day = sum(steps))
+
+#prints the total steps
+print (total_steps)
+
+mean_per_day <- mean(total_steps$total_per_day)
+
+#prints the mean
+print (mean_per_day)
+
+median_per_day <- median(total_steps$total_per_day)
+
+#prints the median
+print (median_per_day)
+
+#makes the plot
+hist(total_steps$total_per_day, 
+     main = "Histogram of Total Steps per Day",
+     xlab = "Total Steps",
+     ylab = "Frequency",
+     col = "blue")
+```
+
+### What is the average daily activity pattern?
+See the code chunk below
+
+```{r}
+#aggregates the data and calculate the average number of steps per 5-minute interval
+aggregated <- aggregate(steps ~ interval, data = data, mean)
+
+plot(aggregated$interval, aggregated$steps,
+     type = "l",
+     main = "Average Number of Steps by 5-Minute Intervals",
+     xlab = "5-Minute Interval",
+     ylab = "Average Number of Steps")
+
+#finds the 5-minute interval with the maximum average number of steps
+max_interval <- data$interval[which.max(data$steps)]
+
+#prints the result
+print(paste("The 5-minute interval with the maximum average number of steps is:", max_interval))
+
+#finds the day with the maximum average number of steps for a specific interval
+max_steps_interval <- 615  # Specify the specific 5-minute interval
+subset_data <- subset(data, interval == max_steps_interval)
+max_day <- subset_data$date[which.max(subset_data$steps)]
+
+#prints the result
+print(paste("On", max_day, "the", max_steps_interval, "interval has the maximum average number of steps."))
+```
+
+### Imputing missing values
+As I have explained above, I have decided to deal with missing value in the cleaning phase, before starting the exploratory analysis.
+I have substituted NAs with 0 as this is the value corresponsing to the median across the entire dataset, both for weekdays and weekends.
+As a consequence, the dataset without missing values is the imported dataset after the cleaning phase described in the first code chunk above.
+In this task, I have only dealt with the last part of the assignment, i.e. to make a histogram of the total number of steps taken each day and calculate and report the mean and median total number of steps taken per day.
+
+Because of the way I have decided to impute missing values, the resulting histogram was heavily left-skewed toward the zero. For this reason, I decided to perform an additional analysis without the interval in which there are 0 steps, to see how the distribution changes, both concerning mean and median values.
+
+```{r}
+#makes a histogram of the total number of steps taken each day
+hist(data$steps, breaks = "FD", main = "Histogram of Total Steps Per Day",
+     xlab = "Total Steps", ylab = "Frequency")
+
+#calculates and reports the mean and median total number of steps taken per day
+mean_steps <- mean(data$steps)
+median_steps <- median(data$steps)
+
+print(paste("Mean steps per day:", mean_steps))
+print(paste("Median steps per day:", median_steps))
+
+#filters out the 0 values from the 'steps' column
+non_zero_steps <- data$steps[data$steps != 0]
+
+#makes a histogram of the non-zero values
+hist(non_zero_steps, breaks = "Sturges", main = "Histogram of Non-Zero Steps Per Day",
+     xlab = "Total Steps", ylab = "Frequency")
+
+#laculates and reports the mean and median total number of steps taken per day
+mean_steps <- mean(non_zero_steps)
+median_steps <- median(non_zero_steps)
+
+print(paste("Mean steps per day:", mean_steps))
+print(paste("Median steps per day:", median_steps))
+```
+
+### Are there differences in activity patterns between weekdays and weekends?
+See the code chunk below, there are significant differences in activity patterns between the two types of days. This can be clearly seen in the panel plot below
+
+```{r}
+data$day_name <- factor(data$day_name, levels = c("Weekday", "Weekend"))
+
+#calculates the average number of steps per interval and day type
+avg_steps <- data %>%
+  group_by(interval, day_name) %>%
+  summarize(avg_steps = mean(steps)) %>%
+  ungroup ()
+
+#creates the panel plot
+ggplot(avg_steps, aes(x = interval, y = avg_steps, group = day_name, color = day_name)) +
+  geom_line() +
+  labs(x = "5-Minute Interval", y = "Average Number of Steps",
+       title = "Average Number of Steps by Interval") +
+  theme_minimal() +
+  facet_grid(. ~ day_name)
+```
