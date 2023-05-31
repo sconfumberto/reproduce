@@ -3,6 +3,7 @@ library(knitr)
 library(readr)
 library(tibble)
 library(tidyr)
+library(dplyr)
 
 #extracts the csv file from the zip 
 url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
@@ -81,4 +82,68 @@ hist(total_steps$total_per_day,
      col = "blue")
 
 #ex.2
+#aggregates the data and calculate the average number of steps per 5-minute interval
+aggregated <- aggregate(steps ~ interval, data = data, mean)
 
+plot(aggregated$interval, aggregated$steps,
+     type = "l",
+     main = "Average Number of Steps by 5-Minute Intervals",
+     xlab = "5-Minute Interval",
+     ylab = "Average Number of Steps")
+
+# Find the 5-minute interval with the maximum average number of steps
+max_interval <- data$interval[which.max(data$steps)]
+
+# Print the result
+print(paste("The 5-minute interval with the maximum average number of steps is:", max_interval))
+
+# Find the day with the maximum average number of steps for a specific interval
+max_steps_interval <- 615  # Specify the specific 5-minute interval
+subset_data <- subset(data, interval == max_steps_interval)
+max_day <- subset_data$date[which.max(subset_data$steps)]
+
+# Print the result
+print(paste("On", max_day, "the", max_steps_interval, "interval has the maximum average number of steps."))
+
+#ex. 3
+# Make a histogram of the total number of steps taken each day
+hist(data$steps, breaks = "FD", main = "Histogram of Total Steps Per Day",
+     xlab = "Total Steps", ylab = "Frequency")
+
+# Calculate and report the mean and median total number of steps taken per day
+mean_steps <- mean(data$steps)
+median_steps <- median(data$steps)
+
+print(paste("Mean steps per day:", mean_steps))
+print(paste("Median steps per day:", median_steps))
+
+# Filter out the 0 values from the 'steps' column
+non_zero_steps <- data$steps[data$steps != 0]
+
+# Make a histogram of the non-zero values
+hist(non_zero_steps, breaks = "Sturges", main = "Histogram of Non-Zero Steps Per Day",
+     xlab = "Total Steps", ylab = "Frequency")
+
+# Calculate and report the mean and median total number of steps taken per day
+mean_steps <- mean(non_zero_steps)
+median_steps <- median(non_zero_steps)
+
+print(paste("Mean steps per day:", mean_steps))
+print(paste("Median steps per day:", median_steps))
+
+#ex.4
+data$day_name <- factor(data$day_name, levels = c("Weekday", "Weekend"))
+
+# Calculate the average number of steps per interval and day type
+avg_steps <- data %>%
+  group_by(interval, day_name) %>%
+  summarize(avg_steps = mean(steps)) %>%
+  ungroup ()
+
+# Create the panel plot
+ggplot(avg_steps, aes(x = interval, y = avg_steps, group = day_name, color = day_name)) +
+  geom_line() +
+  labs(x = "5-Minute Interval", y = "Average Number of Steps",
+       title = "Average Number of Steps by Interval") +
+  theme_minimal() +
+  facet_grid(. ~ day_name)
